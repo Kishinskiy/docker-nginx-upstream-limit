@@ -2,7 +2,7 @@ FROM ubuntu:bionic
 
 MAINTAINER NGINX Docker Maintainers "docker-maint@nginx.com"
 
-ENV NGINX_VERSION=1.15.7
+ENV NGINX_VERSION=1.10.1
 ENV TZ='Europe/Moscow'
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
