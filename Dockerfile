@@ -2,7 +2,7 @@ FROM ubuntu:bionic
 
 MAINTAINER NGINX Docker Maintainers "docker-maint@nginx.com"
 
-ENV NGINX_VERSION=1.10.1
+ENV NGINX_VERSION=1.12.1
 ENV TZ='Europe/Moscow'
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
@@ -76,7 +76,7 @@ RUN GPG_KEYS=B0F4253373F8F6F510D42178520A9993A1C052F8 \
     && tar -zxC /usr/src -f nginx.tar.gz \
     && rm nginx.tar.gz \
     && cd /usr/src/nginx-$NGINX_VERSION \
-    && git clone --depth 1 --branch haosdent/nginx-$NGINX_VERSION https://github.com/haosdent/nginx-limit-upstream.git \
+    && git clone --depth 1 --branch haosdent/nginx-$NGINX_VERSION https://github.com/cfsego/nginx-limit-upstream.git \
     && patch -p1 < nginx-limit-upstream/nginx-$NGINX_VERSION.patch \
     && ./configure $CONFIG --with-debug \
     && make -j$(getconf _NPROCESSORS_ONLN) \
