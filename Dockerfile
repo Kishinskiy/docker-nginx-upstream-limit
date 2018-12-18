@@ -1,10 +1,9 @@
-FROM ubuntu:xenial
+FROM ubuntu:xenial as builder
 
 MAINTAINER NGINX Docker Maintainers "docker-maint@nginx.com"
 
 ENV NGINX_VERSION=1.12.1
 ENV TZ='Europe/Moscow'
-RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 RUN GPG_KEYS=B0F4253373F8F6F510D42178520A9993A1C052F8 \
     && CONFIG="\
@@ -76,41 +75,32 @@ RUN GPG_KEYS=B0F4253373F8F6F510D42178520A9993A1C052F8 \
     && tar -zxC /usr/src -f nginx.tar.gz \
     && rm nginx.tar.gz \
     && cd /usr/src/nginx-$NGINX_VERSION \
-    && git clone --depth 1 --branch 1.2.3 https://github.com/cfsego/nginx-limit-upstream.git \
-    && patch -p1 < nginx-limit-upstream/nginx-$NGINX_VERSION.patch \
-    && ./configure $CONFIG --with-debug \
-    && make -j$(getconf _NPROCESSORS_ONLN) \
-    && mv objs/nginx objs/nginx-debug \
-    && mv objs/ngx_http_xslt_filter_module.so objs/ngx_http_xslt_filter_module-debug.so \
-    && mv objs/ngx_http_image_filter_module.so objs/ngx_http_image_filter_module-debug.so \
-    && mv objs/ngx_http_geoip_module.so objs/ngx_http_geoip_module-debug.so \
-    && mv objs/ngx_stream_geoip_module.so objs/ngx_stream_geoip_module-debug.so \
+    && git clone --depth 1 --branch haosdent/nginx-1.12.1 https://github.com/haosdent/nginx-limit-upstream.git \
+    && patch -p1 < nginx-limit-upstream/nginx-1.12.1.patch \
     && ./configure $CONFIG \
-    && make -j$(getconf _NPROCESSORS_ONLN) \
-    && make install \
-    && rm -rf /etc/nginx/html/ \
-    && mkdir /etc/nginx/conf.d/ \
-    && mkdir -p /usr/share/nginx/html/ \
-    && install -m644 html/index.html /usr/share/nginx/html/ \
-    && install -m644 html/50x.html /usr/share/nginx/html/ \
-    && install -m755 objs/nginx-debug /usr/sbin/nginx-debug \
-    && install -m755 objs/ngx_http_xslt_filter_module-debug.so /usr/lib/nginx/modules/ngx_http_xslt_filter_module-debug.so \
-    && install -m755 objs/ngx_http_image_filter_module-debug.so /usr/lib/nginx/modules/ngx_http_image_filter_module-debug.so \
-    && install -m755 objs/ngx_http_geoip_module-debug.so /usr/lib/nginx/modules/ngx_http_geoip_module-debug.so \
-    && install -m755 objs/ngx_stream_geoip_module-debug.so /usr/lib/nginx/modules/ngx_stream_geoip_module-debug.so \
-    && ln -s ../../usr/lib/nginx/modules /etc/nginx/modules \
-    && strip /usr/sbin/nginx* \
-    && strip /usr/lib/nginx/modules/*.so \
-    && rm -rf /usr/src/nginx-$NGINX_VERSION \
-    \
-    # forward request and error logs to docker log collector
-    && ln -sf /dev/stdout /var/log/nginx/access.log \
-    && ln -sf /dev/stderr /var/log/nginx/error.log \
-    && ln -sf /usr/share/zoneinfo/Europe/Moscow /etc/localtime
+    && make -j$(getconf _NPROCESSORS_ONLN)
 
+FROM ubuntu:xenial
 COPY nginx.conf /etc/nginx/nginx.conf
 COPY nginx.vh.default.conf /etc/nginx/conf.d/default.conf
-
+RUN  apt-get update && apt-get install -y \
+    libexpat1 \
+    libgd3 \
+    libgeoip1 \
+    libmhash2 \
+    libpam0g \
+    libpcre3 \
+    libperl5.22 \
+    libssl1.0.0 \
+    libxslt1.1 \
+    zlib1g 
+COPY --from=builder /usr/src/nginx-1.12.1/conf /etc/nginx
+COPY --from=builder /usr/src/nginx-1.12.1/objs/nginx /usr/sbin/
+COPY --from=builder /usr/src/nginx-1.12.1/objs/*.so /usr/lib/nginx/modules/
+RUN mkdir -p /var/log/nginx/ && touch /var/log/nginx/error.log
+RUN  addgroup --system nginx \
+    && adduser --disabled-login --system --home /var/cache/nginx --shell /sbin/nologin --ingroup nginx nginx \
+    && chown -R nginx:nginx /var/log/nginx/
 EXPOSE 80
 
 STOPSIGNAL SIGTERM
